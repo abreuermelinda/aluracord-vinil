@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Text,
@@ -8,10 +8,30 @@ import {
   Icon,
 } from "@skynexui/components";
 import appConfig from "../config.json";
+import { createClient } from "@supabase/supabase-js";
+
+// Como fazer AJAX: https://medium.com/@omariosouto/entendendo-como-fazer-ajax-com-a-fetchapi-977ff20da3c6
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzQ4MDY0MywiZXhwIjoxOTU5MDU2NjQzfQ.fUQVTXVVy3CVc_nIOQ0RHBI1Xqz-HJXlpsAK61qD2iQ";
+const SUPABASE_URL = "https://bwrqsynfwrzxqdstghjr.supabase.co";
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function PaginaDoChat() {
   const [mensagem, setMensagem] = useState("");
   const [listaDeMensagens, setListaDeMensagens] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabaseClient
+      .from("mensagens")
+      .select("*")
+      .order("id", { ascending: false })
+      .then(({ data }) => {
+        console.log("Dados da consulta:", data);
+        setListaDeMensagens(data);
+        setLoading(false);
+      });
+  }, []);
 
   /*
     // Usuário
@@ -26,27 +46,41 @@ export default function PaginaDoChat() {
     */
   function handleNovaMensagem(novaMensagem) {
     const mensagem = {
-      id: listaDeMensagens.length + 1,
+      // id: listaDeMensagens.length + 1,
       de: "abreuermelinda",
       texto: novaMensagem,
     };
 
-    setListaDeMensagens([mensagem, ...listaDeMensagens]);
+    supabaseClient
+      .from("mensagens")
+      .insert([
+        // Tem que ser um objeto com os MESMOS CAMPOS que você escreveu no supabase
+        mensagem,
+      ])
+      .then(({ data }) => {
+        console.log("Criando mensagem: ", data);
+        setListaDeMensagens([data[0], ...listaDeMensagens]);
+      });
     setMensagem("");
   }
 
-  function handleDeleteMensagem(id) {
+  /* function handleDeleteMessage(id) {
     const deleteMessage = listaDeMensagens.filter(
       (mensagem) => mensagem.id !== id
     );
     setListaDeMensagens(deleteMessage);
-  }
+  } */
 
-  function handleDeleteMessage(id) {
-    const deleteMessage = listaDeMensagens.filter(
-      (mensagem) => mensagem.id !== id
-    );
-    setListaDeMensagens(deleteMessage);
+  async function handleDeleteMessage(mensagemId) {
+    await supabaseClient.from("mensagens").delete().match({ id: mensagemId });
+
+    let novaListaDeMensagens = listaDeMensagens.filter((message) => {
+      if (message.id != mensagemId) {
+        return message;
+      }
+    });
+
+    setListaDeMensagens([...novaListaDeMensagens]);
   }
 
   return (
@@ -93,6 +127,7 @@ export default function PaginaDoChat() {
           <MessageList
             mensagens={listaDeMensagens}
             handleDeleteMessage={handleDeleteMessage}
+            loading={loading}
           />
           {/* {listaDeMensagens.map((mensagemAtual) => {
                         return (
@@ -202,6 +237,27 @@ function MessageList(props) {
         marginBottom: "16px",
       }}
     >
+      {props.loading && (
+        <Box
+          styleSheet={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <Image
+            styleSheet={{
+              borderRadius: "30%",
+
+              maxWidth: "500px",
+              align: "center",
+            }}
+            alt="Carregando"
+            src="vinyl.gif"
+          />
+        </Box>
+      )}
       {props.mensagens.map((mensagem) => {
         return (
           <Text
@@ -240,7 +296,7 @@ function MessageList(props) {
                     display: "inline-block",
                     marginRight: "8px",
                   }}
-                  src={`https://github.com/abreuermelinda.png`}
+                  src={`https://github.com/${mensagem.de}.png`}
                 />
                 <Text tag="strong">{mensagem.de}</Text>
                 <Text
@@ -256,14 +312,12 @@ function MessageList(props) {
               </Box>
               <Icon
                 id={mensagem.id}
-                onClick={() => {
-                  handleDeleteMessage(mensagem.id);
-                }}
+                onClick={() => handleDeleteMessage(mensagem.id)}
                 type="button"
                 name="FaTrash"
                 styleSheet={{
                   color: appConfig.theme.colors.neutrals[200],
-                  cursor: 'pointer',
+                  cursor: "pointer",
                 }}
               />
             </Box>
