@@ -19,7 +19,7 @@ function Titulo(props) {
   );
 }
 
-export default function PaginaDoChat() {
+export default function Page404() {
   const roteamento = useRouter();
 
   return (

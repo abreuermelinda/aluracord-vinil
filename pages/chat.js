@@ -8,18 +8,32 @@ import {
   Icon,
 } from "@skynexui/components";
 import appConfig from "../config.json";
+import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
+import { ButtonSendSticker } from "../src/components/ButtonSendSticker";
+import Popover from "@mui/material/Popover";
+import Profile from "../src/components/Profile";
 
 // Como fazer AJAX: https://medium.com/@omariosouto/entendendo-como-fazer-ajax-com-a-fetchapi-977ff20da3c6
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzQ4MDY0MywiZXhwIjoxOTU5MDU2NjQzfQ.fUQVTXVVy3CVc_nIOQ0RHBI1Xqz-HJXlpsAK61qD2iQ";
-const SUPABASE_URL = "https://bwrqsynfwrzxqdstghjr.supabase.co";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPBASE_ANON_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function escutaMensagensEmTempoReal(adicionaMensagem) {
+  return supabaseClient
+    .from("mensagens")
+    .on("INSERT", (respostaLive) => {
+      adicionaMensagem(respostaLive.new);
+    })
+    .subscribe();
+}
 
 export default function PaginaDoChat() {
   const [mensagem, setMensagem] = useState("");
   const [listaDeMensagens, setListaDeMensagens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const roteamento = useRouter();
+  const usuarioLogado = roteamento.query.username;
 
   useEffect(() => {
     supabaseClient
@@ -27,10 +41,30 @@ export default function PaginaDoChat() {
       .select("*")
       .order("id", { ascending: false })
       .then(({ data }) => {
-        console.log("Dados da consulta:", data);
+        // console.log("Dados da consulta:", data);
         setListaDeMensagens(data);
         setLoading(false);
       });
+
+    const subscription = escutaMensagensEmTempoReal((novaMensagem) => {
+      console.log("Nova mensagem:", novaMensagem);
+      console.log("listaDeMensagens:", listaDeMensagens);
+      // Quero reusar um valor de referencia (objeto/array)
+      // Passar uma função pro setState
+
+      // setListaDeMensagens([
+      //     novaMensagem,
+      //     ...listaDeMensagens
+      // ])
+      setListaDeMensagens((valorAtualDaLista) => {
+        console.log("valorAtualDaLista:", valorAtualDaLista);
+        return [novaMensagem, ...valorAtualDaLista];
+      });
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   /*
@@ -47,7 +81,7 @@ export default function PaginaDoChat() {
   function handleNovaMensagem(novaMensagem) {
     const mensagem = {
       // id: listaDeMensagens.length + 1,
-      de: "abreuermelinda",
+      de: usuarioLogado,
       texto: novaMensagem,
     };
 
@@ -164,29 +198,27 @@ export default function PaginaDoChat() {
                 borderRadius: "5px",
                 padding: "6px 8px",
                 backgroundColor: appConfig.theme.colors.neutrals[800],
+                marginTop: "10px",
                 marginRight: "12px",
                 color: appConfig.theme.colors.neutrals[200],
               }}
-            >
-              <Button
-                type="button"
-                variant="primary"
-                colorVariant="neutral"
-                label="X"
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleNovaMensagem(mensagem);
-                }}
-              />
-            </TextField>
+            />
+
             <Button
               type="submit"
               variant="primary"
               colorVariant="neutral"
-              label="OK"
+              label="Enviar"
               onClick={(event) => {
                 event.preventDefault();
                 handleNovaMensagem(mensagem);
+              }}
+            />
+            {/* CallBack */}
+            <ButtonSendSticker
+              onStickerClick={(sticker) => {
+                // console.log('[USANDO O COMPONENTE] Salva esse sticker no banco', sticker);
+                handleNovaMensagem(":sticker: " + sticker);
               }}
             />
           </Box>
@@ -221,9 +253,20 @@ function Header() {
 }
 
 function MessageList(props) {
-  console.log(props);
-
   const handleDeleteMessage = props.handleDeleteMessage;
+
+  /* const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const open = Boolean(anchorEl);
+  const id = open ? "simple-popover" : undefined; */
 
   return (
     <Box
@@ -295,9 +338,29 @@ function MessageList(props) {
                     borderRadius: "50%",
                     display: "inline-block",
                     marginRight: "8px",
+                    cursor: "pointer",
+                    hover: {
+                      width: "100px",
+                      height: "100px",
+                      borderRadius: "10%",
+                    },
                   }}
                   src={`https://github.com/${mensagem.de}.png`}
+                  /* onClick={handleClick} */
                 />
+
+                {/* <Popover
+                  id={id}
+                  open={open}
+                  anchorEl={anchorEl}
+                  onClose={handleClose}
+                  anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "left",
+                  }}
+                >
+                  <Profile username={mensagem.de} />
+                </Popover> */}
                 <Text tag="strong">{mensagem.de}</Text>
                 <Text
                   styleSheet={{
@@ -321,7 +384,16 @@ function MessageList(props) {
                 }}
               />
             </Box>
-            {mensagem.texto}
+            {/* [Declarativo] */}
+            {/* Condicional: {mensagem.texto.startsWith(':sticker:').toString()} */}
+            {mensagem.texto.startsWith(":sticker:") ? (
+              <Image
+                styleSheet={{ width: "200px", height: "200px" }}
+                src={mensagem.texto.replace(":sticker:", "")}
+              />
+            ) : (
+              mensagem.texto
+            )}
           </Text>
         );
       })}
