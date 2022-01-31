@@ -16,7 +16,7 @@ import Profile from "../src/components/Profile";
 
 // Como fazer AJAX: https://medium.com/@omariosouto/entendendo-como-fazer-ajax-com-a-fetchapi-977ff20da3c6
 
-const supabaseAnonKey = process.env.SUPBASE_ANON_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
