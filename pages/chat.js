@@ -15,10 +15,10 @@ import Popover from "@mui/material/Popover";
 import Profile from "../src/components/Profile";
 
 // Como fazer AJAX: https://medium.com/@omariosouto/entendendo-como-fazer-ajax-com-a-fetchapi-977ff20da3c6
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzQ4MDY0MywiZXhwIjoxOTU5MDU2NjQzfQ.fUQVTXVVy3CVc_nIOQ0RHBI1Xqz-HJXlpsAK61qD2iQ";
-const SUPABASE_URL = "https://bwrqsynfwrzxqdstghjr.supabase.co";
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const supabaseAnonKey = process.env.SUPBASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 function escutaMensagensEmTempoReal(adicionaMensagem) {
   return supabaseClient
